@@ -95,13 +95,13 @@ class DatabaseTests: XCTestCase {
             init() {}
             
             func before(query: String) throws {
-                if failSavepoint && query.starts(with: "SAVEPOINT") { throw TestError.savepointFailed }
-                if failRelease && query.starts(with: "RELEASE") { throw TestError.releaseFailed }
+                if failSavepoint && query.starts(with: "BEGIN") { throw TestError.savepointFailed }
+                if failRelease && query.starts(with: "COMMIT") { throw TestError.releaseFailed }
                 if failRollback && query.starts(with: "ROLLBACK") { throw TestError.rollbackFailed }
             }
         }
         
-        let worker = MultiThreadedEventLoopGroup(numThreads: 1)
+        let worker = MultiThreadedEventLoopGroup(numberOfThreads: 1)
         
         let connection = LoggingConnection(worker: worker)
         let checker = QueryChecker()
@@ -110,7 +110,7 @@ class DatabaseTests: XCTestCase {
         try connection.transaction(on: worker) { connection -> Future<Void> in
             connection.execute("in transaction").transform(to: Void())
             }.wait()
-        connection.assertExecuted(["SAVEPOINT", "in transaction", "RELEASE"])
+        connection.assertExecuted(["BEGIN", "in transaction", "COMMIT"])
         
         XCTAssertThrowsError(try connection.transaction(on: worker) { connection -> Future<Void> in
             connection.execute("in transaction").map(to: Void.self) { _ in
@@ -121,7 +121,7 @@ class DatabaseTests: XCTestCase {
             if case TestError.blockFailed = error {}
             else { XCTFail("Incorrect error thrown: \(error)") }
         }
-        connection.assertExecuted(["SAVEPOINT", "in transaction", "ROLLBACK"])
+        connection.assertExecuted(["BEGIN", "in transaction", "ROLLBACK"])
         
         checker.failSavepoint = true
         XCTAssertThrowsError(try connection.transaction(on: worker) { connection -> Void in
@@ -131,7 +131,7 @@ class DatabaseTests: XCTestCase {
             if case TestError.savepointFailed = error {}
             else { XCTFail("Incorrect error thrown: \(error)") }
         }
-        connection.assertExecuted(["SAVEPOINT", "ROLLBACK"])
+        connection.assertExecuted(["BEGIN", "ROLLBACK"])
         
         checker.failSavepoint = true
         checker.failRollback = true
@@ -139,10 +139,10 @@ class DatabaseTests: XCTestCase {
             XCTFail("Block should not be executed if savepoint fails")
             }.wait()
         ) { error in
-            if case TestError.rollbackFailed = error {}
+            if case TestError.savepointFailed = error {}
             else { XCTFail("Incorrect error thrown: \(error)") }
         }
-        connection.assertExecuted(["SAVEPOINT", "ROLLBACK"])
+        connection.assertExecuted(["BEGIN", "ROLLBACK"])
         
         checker.failSavepoint = false
         checker.failRelease = true
@@ -154,7 +154,7 @@ class DatabaseTests: XCTestCase {
             if case TestError.releaseFailed = error {}
             else { XCTFail("Incorrect error thrown: \(error)") }
         }
-        connection.assertExecuted(["SAVEPOINT", "in transaction", "RELEASE", "ROLLBACK"])
+        connection.assertExecuted(["BEGIN", "in transaction", "COMMIT", "ROLLBACK"])
         
         checker.failRelease = true
         checker.failRollback = true
@@ -162,10 +162,10 @@ class DatabaseTests: XCTestCase {
             connection.execute("in transaction").map(to: String.self) { _ in "Hello, world!" }
             }.wait()
         ) { error in
-            if case TestError.rollbackFailed = error {}
+            if case TestError.releaseFailed = error {}
             else { XCTFail("Incorrect error thrown: \(error)") }
         }
-        connection.assertExecuted(["SAVEPOINT", "in transaction", "RELEASE", "ROLLBACK"])
+        connection.assertExecuted(["BEGIN", "in transaction", "COMMIT", "ROLLBACK"])
     }
     
     static var allTests = [

@@ -26,7 +26,7 @@ class MigrationTests: XCTestCase {
     }
     
     func testMigrations() throws {
-        let worker = MultiThreadedEventLoopGroup(numThreads: 1)
+        let worker = MultiThreadedEventLoopGroup(numberOfThreads: 1)
         let db = LoggingConnection(worker: worker)
         let m = Migrator(database: db, worker: worker)
         
@@ -44,21 +44,21 @@ class MigrationTests: XCTestCase {
         }
         
         db.assertExecuted([
-            "SAVEPOINT",
-            "SAVEPOINT",
+            "BEGIN",
+            "BEGIN",
             "CREATE TABLE `test` (`i` INTEGER UNIQUE CHECK ((`test_object`.`id` = ?))",
-            "RELEASE",
-            "SAVEPOINT",
+            "COMMIT",
+            "BEGIN",
             "CREATE TABLE `test_object` (`int` INTEGER CHECK (((`test_object`.`int` = ?) OR `test_object`.`bool`)) DEFAULT (?) NOT NULL" +
                 ", `optionalString` TEXT, `id` INTEGER PRIMARY KEY NOT NULL)",
-            "CREATE INDEX `orm_index_1_11_test_object_3_int` ON `test_object` (`int`)",
-            "RELEASE",
-            "RELEASE"
+            "CREATE INDEX `sworm_index_1_11_test_object_3_int` ON `test_object` (`int`)",
+            "COMMIT",
+            "COMMIT"
             ]
         )
         
         try m.migrate(to: 1) { _ in XCTFail("Migration should only be run once"); return worker.eventLoop.newSucceededFuture(result: ()) }
-        db.assertExecuted(["SAVEPOINT", "RELEASE"])
+        db.assertExecuted(["BEGIN", "COMMIT"])
         
         do {
             try m.migrate(to: 2) { _ in return worker.eventLoop.newFailedFuture(error: TestError.testError) }
@@ -66,15 +66,15 @@ class MigrationTests: XCTestCase {
         } catch {
             
         }
-        db.assertExecuted(["SAVEPOINT", "ROLLBACK"])
+        db.assertExecuted(["BEGIN", "ROLLBACK"])
         
         try m.migrate(to: 2) { connection in
             connection.renameTable(old: "test", new: "renamed")
         }
         db.assertExecuted([
-            "SAVEPOINT",
+            "BEGIN",
             "ALTER TABLE `test` RENAME TO `renamed`",
-            "RELEASE"
+            "COMMIT"
             ]
         )
         
@@ -90,19 +90,19 @@ class MigrationTests: XCTestCase {
             }
         }
         db.assertExecuted([
-            "SAVEPOINT",
-            "SAVEPOINT",
+            "BEGIN",
+            "BEGIN",
             
             "ALTER TABLE `test_object` ADD COLUMN `bool` INTEGER NOT NULL",
             
-            "CREATE INDEX `orm_index_1_11_test_object_3_int` ON `test_object` (`int`)",
-            "CREATE INDEX `orm_index_2_11_test_object_3_int_4_bool` ON `test_object` (`int`, `bool`)",
+            "CREATE INDEX `sworm_index_1_11_test_object_3_int` ON `test_object` (`int`)",
+            "CREATE INDEX `sworm_index_2_11_test_object_3_int_4_bool` ON `test_object` (`int`, `bool`)",
             
-            "DROP INDEX `orm_index_1_11_test_object_3_int`",
-            "DROP INDEX `orm_index_2_11_test_object_3_int_4_bool",
+            "DROP INDEX `sworm_index_1_11_test_object_3_int`",
+            "DROP INDEX `sworm_index_2_11_test_object_3_int_4_bool",
             
-            "RELEASE",
-            "RELEASE"
+            "COMMIT",
+            "COMMIT"
             ]
         )
         
@@ -111,9 +111,9 @@ class MigrationTests: XCTestCase {
         }
         
         db.assertExecuted([
-            "SAVEPOINT",
+            "BEGIN",
             "DROP TABLE `test_object`",
-            "RELEASE"
+            "COMMIT"
             ]
         )
         
@@ -139,11 +139,11 @@ class MigrationTests: XCTestCase {
         }
         
         db.assertExecuted([
-            "SAVEPOINT",
-            "SAVEPOINT",
+            "BEGIN",
+            "BEGIN",
             "CREATE TABLE `foreign_key_test` (`id` INTEGER PRIMARY KEY NOT NULL, `testObject` INTEGER REFERENCES `test_object` (`id`) NOT NULL)",
-            "RELEASE",
-            "RELEASE"
+            "COMMIT",
+            "COMMIT"
             ]
         )
     }

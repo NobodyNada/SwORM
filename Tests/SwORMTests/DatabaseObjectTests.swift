@@ -70,10 +70,10 @@ class DatabaseObjectTests: XCTestCase {
     }
     
     func testSave() throws {
-        let connection = LoggingConnection(worker: MultiThreadedEventLoopGroup(numThreads: 1))
+        let connection = LoggingConnection(worker: MultiThreadedEventLoopGroup(numberOfThreads: 1))
         var object = TestObject2(id: nil, string2: "Hello, world!")
         _ = try object.save(connection).wait()
-        connection.assertExecuted(["INSERT INTO `test_object_2` (`string2`, `id`) VALUES (?, ?)"])
+        connection.assertExecuted(["INSERT INTO `test_object_2` (`string2`) VALUES (?)"])
         
         object.id = 0
         _ = try object.save(connection).wait()
@@ -81,7 +81,7 @@ class DatabaseObjectTests: XCTestCase {
     }
     
     func testFind() throws {
-        let connection = LoggingConnection(worker: MultiThreadedEventLoopGroup(numThreads: 1))
+        let connection = LoggingConnection(worker: MultiThreadedEventLoopGroup(numberOfThreads: 1))
         let result = try TestObject2.find(0, connection: connection).wait()
         XCTAssertEqual(result, nil, "LoggingConnection always returns empty")
         connection.assertExecuted(
@@ -93,7 +93,7 @@ class DatabaseObjectTests: XCTestCase {
     }
     
     func testDestroy() throws {
-        let connection = LoggingConnection(worker: MultiThreadedEventLoopGroup(numThreads: 1))
+        let connection = LoggingConnection(worker: MultiThreadedEventLoopGroup(numberOfThreads: 1))
         let object = TestObject2(id: 0, string2: "Hello, world!")
         try object.destroy(connection).wait()
         connection.assertExecuted(["DELETE FROM `test_object_2` WHERE (`test_object_2`.`id` = ?)"])

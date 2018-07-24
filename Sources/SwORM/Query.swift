@@ -134,7 +134,9 @@ public extension VoidQuery {
     ///Runs this query on the given connection.
     func run(_ connection: Connection) -> Future<Void> {
         let sql = self.sql
-        return connection.execute(sql.sqlString(dialect: connection.database.dialect), parameters: sql.sqlParameters).map(to: Void.self) { _ in }
+        return connection.execute(
+            sql.sqlString(dialect: connection.database.dialect),
+            parameters: sql.sqlParameters(dialect: connection.database.dialect)).map(to: Void.self) { _ in }
     }
 }
 
@@ -148,8 +150,10 @@ public extension SelectQuery {
     ///Runs this query on the given connection, returning all results.
     func all(_ connection: Connection) -> Future<[Result]> {
         let sql = self.sql
-        return connection.execute(sql.sqlString(dialect: connection.database.dialect), parameters: sql.sqlParameters).map(to: [Result].self) {
-            try $0.map { try Result.from(row: $0) }
+        return connection.execute(
+            sql.sqlString(dialect: connection.database.dialect),
+            parameters: sql.sqlParameters(dialect: connection.database.dialect)).map(to: [Result].self) {
+                try $0.map { try Result.from(row: $0) }
         }
     }
     
@@ -158,14 +162,16 @@ public extension SelectQuery {
         let sql = self.sql
         return connection.execute(
             (sql + [SQLFragment.literal("LIMIT 1")]).sqlString(dialect: connection.database.dialect),
-            parameters: sql.sqlParameters
+            parameters: sql.sqlParameters(dialect: connection.database.dialect)
             ).map(to: Result?.self) { try $0.first.map { try Result.from(row: $0) } }
     }
     
     ///Runs this query on the given connection, returning the number of results.
     func count(_ connection: Connection) -> Future<Int> {
         let sql = self.sql
-        return connection.execute(countSQL.sqlString(dialect: connection.database.dialect), parameters: sql.sqlParameters)
+        return connection.execute(
+            countSQL.sqlString(dialect: connection.database.dialect),
+            parameters: sql.sqlParameters(dialect: connection.database.dialect))
             .map(to: Int?.self) { try $0.first?.column(at: 0, type: Int.self) }
             .unwrap(or: SelectError.noRowsReturnedByCount)
     }
@@ -236,7 +242,7 @@ where WhereClause.ExpressionResult == Bool {
 private func makeSelectQuery(columns: [SelectColumn], from: [SQLFragment], whereClause: [SQLFragment]?) -> [SQLFragment] {
     let columnFragment = columns.flatMap { $0.flattened }.map {
         $0.sql + [SQLFragment.literal("AS"), SQLFragment.identifier($0.name)]
-        }.map { $0.sqlString() }.joined(separator: ", ")
+        }.map { $0.sqlString(dialect: .sqlite) }.joined(separator: ", ")
     
     var result = [SQLFragment]()
     result.append(.literal("SELECT \(columnFragment) FROM"))

@@ -245,7 +245,7 @@ public struct TableDef<T: DatabaseObject> {
     
     private func defaultName(index: [String]) -> String {
         //Simple mangling scheme to prevent two indices from accidentally having the same name
-        return (["SwORM_index", String(index.count), String(name.count), name] + index.flatMap { [String($0.count), $0] }).joined(separator: "_")
+        return (["sworm_index", String(index.count), String(name.count), name] + index.flatMap { [String($0.count), $0] }).joined(separator: "_")
     }
     
     private func writeIndices(connection: Connection) -> Future<Void> {
@@ -271,7 +271,7 @@ public struct TableDef<T: DatabaseObject> {
             }
             
             return connection.execute(sql.sqlString(dialect: connection.database.dialect)).map(to: Void.self) { _ in }
-            }}.reduce(connection.eventLoop.future()) { $0.then($1 as () -> Future<Void>) }
+            }}.reduce(connection.future()) { $0.then($1 as () -> Future<Void>) }
     }
     
     internal func create(connection: Connection) -> Future<Void> {
@@ -301,7 +301,7 @@ public struct TableDef<T: DatabaseObject> {
             
             return connection.execute(
                 sql.sqlString(dialect: connection.database.dialect),
-                parameters: sql.sqlParameters
+                parameters: sql.sqlParameters(dialect: connection.database.dialect)
                 ).flatMap(to: Void.self) { _ in self.writeIndices(connection: connection) }
         }
     }

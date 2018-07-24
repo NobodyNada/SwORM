@@ -23,7 +23,7 @@ class ExpressionTests: XCTestCase {
     func testTypedExpression() {
         let expr: TypedExpression<Bool, TestObject> = \.id == 5 as Int64? && !(\.string == "Hello, world!")
         XCTAssertEqual(
-            expr.sql.sqlString.replacingOccurrences(of: " ", with: ""),
+            expr.sql.sqlString(dialect: .sqlite).replacingOccurrences(of: " ", with: ""),
             "((`test_object`.`id` = ?) AND NOT (`test_object`.`string` = ?))".replacingOccurrences(of: " ", with: "")
             )
     }
@@ -34,7 +34,7 @@ class ExpressionTests: XCTestCase {
         }
         let expr = f(\TestObject.id == 5 as Int64? && !(\TestObject2.string2 == "Hello, world!"))
         XCTAssertEqual(
-            expr.sql.sqlString.replacingOccurrences(of: " ", with: ""),
+            expr.sql.sqlString(dialect: .sqlite).replacingOccurrences(of: " ", with: ""),
             "((`test_object`.`id` = ?) AND NOT (`test_object_2`.`string2` = ?))".replacingOccurrences(of: " ", with: "")
         )
     }
@@ -42,7 +42,7 @@ class ExpressionTests: XCTestCase {
     func testJoin() {
         let join = TestObject.join(TestObject2.self, on: \TestObject.string == \TestObject2.string2)
         XCTAssertEqual(
-            join.sql.sqlString.replacingOccurrences(of: " ", with: ""),
+            join.sql.sqlString(dialect: .sqlite).replacingOccurrences(of: " ", with: ""),
             "(`test_object` INNER JOIN `test_object_2` ON (`test_object`.`string` = `test_object_2`.`string2`))"
                 .replacingOccurrences(of: " ", with: "")
         )

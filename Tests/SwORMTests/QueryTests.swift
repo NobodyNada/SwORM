@@ -63,7 +63,7 @@ class QueryTests: XCTestCase {
     
     func testSelect() {
         let q = TestObject.select(where: \.int < 5)
-        XCTAssertEqual(q.sql.sqlString, [
+        XCTAssertEqual(q.sql.sqlString(dialect: .sqlite), [
             "SELECT `test_object`.`id` AS `test_object.id`, `test_object`.`bool` AS `test_object.bool`, ",
             "`test_object`.`double` AS `test_object.double`, `test_object`.`int` AS `test_object.int`, ",
             "`test_object`.`string` AS `test_object.string`, `test_object`.`data` AS `test_object.data`, ",
@@ -85,19 +85,19 @@ class QueryTests: XCTestCase {
             .null], table: table
         )
         XCTAssertEqual(
-            q.sql.sqlString,
+            q.sql.sqlString(dialect: .sqlite),
             "INSERT INTO `test` (`a`, `b`, `c`, `d`, `e`, `f`) VALUES (?, ?, ?, ?, ?, ?)"
         )
     }
     
     func testUpdate() throws {
-        let conn = LoggingConnection(worker: MultiThreadedEventLoopGroup(numThreads: 1))
+        let conn = LoggingConnection(worker: MultiThreadedEventLoopGroup(numberOfThreads: 1))
         let _ = try TestObject.update(\TestObject.int, to: \.int + 1, where: \.bool, connection: conn).wait()
         conn.assertExecuted(["UPDATE `test_object` SET `test_object`.`int` = (`test_object`.`int` + ?) WHERE `test_object`.`bool`"])
     }
     
     func testDelete() throws {
-        let conn = LoggingConnection(worker: MultiThreadedEventLoopGroup(numThreads: 1))
+        let conn = LoggingConnection(worker: MultiThreadedEventLoopGroup(numberOfThreads: 1))
         let _ = try TestObject.delete(where: \TestObject.optionalString == (nil as String?), connection: conn).wait()
         conn.assertExecuted(["DELETE FROM `test_object` WHERE (`test_object`.`optionalString` = ?)"])
     }
@@ -133,7 +133,7 @@ class QueryTests: XCTestCase {
                 ("second.test_object.data", Data().asNative),
                 ("second.test_object.optionalString", .null)
             ]],
-            worker: MultiThreadedEventLoopGroup(numThreads: 1)
+            worker: MultiThreadedEventLoopGroup(numberOfThreads: 1)
         )
         do {
             guard let result = try JoinTest.join(\.testObject).select().first(conn).wait() else {

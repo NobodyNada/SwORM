@@ -41,9 +41,13 @@ public enum SQLFragment: CustomStringConvertible {
 
 public extension Array where Element == SQLFragment {
     ///Converts an array of `SQLFragment`s to a string of SQL code.  Parameters are replaced with `?`.
-    public func sqlString(dialect: SQLDialect = .sqlite) -> String {
-        var delimited = true
+    private func _sqlString(dialect: SQLDialect, delimited: Bool) -> (text: String, leftDelimiter: Bool, rightDelimiter: Bool) {
+        var delimited = delimited
         var result = ""
+        
+        var first = true
+        var resultIsLeftDelimiter = false
+        
         for fragment in self {
             let text: String
             let leftDelimiter: Bool
@@ -58,26 +62,38 @@ public extension Array where Element == SQLFragment {
                 rightDelimiter = false
             } else if case .dialectSpecific(let dialects) = fragment {
                 let sql = dialects[dialect] ?? dialects.first!.value
-                text = sql.sqlString(dialect: dialect)
-                leftDelimiter = false
-                rightDelimiter = false
+                let result = sql._sqlString(dialect: dialect, delimited: delimited)
+                
+                if result.text.isEmpty { continue }
+                (text, leftDelimiter, rightDelimiter) = result
             } else { fatalError() }
             
             if !delimited && !leftDelimiter { result += " " }
             result += text
             delimited = rightDelimiter
+            
+            if first {
+                resultIsLeftDelimiter = leftDelimiter
+                first = false
+            }
         }
         
-        return result
+        return (result, resultIsLeftDelimiter, delimited)
+    }
+    
+    public func sqlString(dialect: SQLDialect) -> String {
+        return _sqlString(dialect: dialect, delimited: true).text
     }
     
     ///Returns the bound parameters in this array of `SQLFragment`s.
-    public var sqlParameters: [DatabaseType?] {
-        return compactMap {
-            if case .parameter(let v) = $0 {
-                return v
+    public func sqlParameters(dialect: SQLDialect) -> [DatabaseType?] {
+        return self.flatMap { (fragment: SQLFragment) -> [DatabaseType?] in
+            if case .parameter(let v) = fragment {
+                return [v] as [DatabaseType?]
+            } else if case .dialectSpecific(let dialects) = fragment, let sql = dialects[dialect] {
+                return sql.sqlParameters(dialect: dialect)
             }
-            return nil
+            return []
         }
     }
 }
