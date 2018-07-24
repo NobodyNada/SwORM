@@ -1,5 +1,7 @@
 # SwORM
 
+[![Build Status](https://travis-ci.com/NobodyNada/SwORM.svg)](https://travis-ci.com/NobodyNada/SwORM)
+
 [SQLite Adapter](https://github.com/NobodyNada/SQLiteSwORM) | [MySQL Adapter](https://github.com/NobodyNada/MySQLSwORM)
 
 SwORM is an experimental object-relational mapper written in Swift.  It is type-safe at compile-type using key paths, operator overloading, and lots of generics abuse. 
