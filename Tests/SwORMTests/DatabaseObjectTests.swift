@@ -77,7 +77,10 @@ class DatabaseObjectTests: XCTestCase {
         
         object.id = 0
         _ = try object.save(connection).wait()
-        connection.assertExecuted(["UPDATE `test_object_2` SET `id` = ?, `string2` = ? WHERE (`test_object_2`.`id` = ?)"])
+        XCTAssert(
+            connection.executedQueries == ["UPDATE `test_object_2` SET `id` = ?, `string2` = ? WHERE (`test_object_2`.`id` = ?)"] ||
+                connection.executedQueries == ["UPDATE `test_object_2` SET `string2` = ?, `id` = ? WHERE (`test_object_2`.`id` = ?)"]
+        )
     }
     
     func testFind() throws {
